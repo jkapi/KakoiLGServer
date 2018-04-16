@@ -8,17 +8,17 @@ namespace KakoiLGServer
 {
     enum PacketTypes
     {
-        LOGINUSERPASS, LOGINSESSID, JOINROOM, LEAVEROOM, GETROOM, ROOMLIST, CREATEROOM,
-        MINIGAME, SETMOVE, DOMOVE, MOUSE, PLAYER, TICK, SWAT
+        LOGINSESSID = 0, JOINROOM = 1, LEAVEROOM = 2, GETROOM = 3, ROOMLIST = 4, CREATEROOM = 5,
+        MINIGAME = 6, SETMOVE = 7, DOMOVE = 8, MOUSE = 9, PLAYER = 10, TICK = 11, SWAT = 12
     }
 
     enum DataTypes
     {
-        BYTE, FLOAT, STRING, INT, EMPTY
+        BYTE = 0, FLOAT = 1, STRING = 2, INT = 3, EMPTY = 4
     }
 
     enum MinigameTypes
     {
-        None, MainGame, FlySwat, ClimbTheMountain, DinoCollectStuff, FollowTheLeader
+        None = 0, MainGame = 1, FlySwat = 2, ClimbTheMountain = 3, DinoCollectStuff = 4, FollowTheLeader = 5
     }
 }
