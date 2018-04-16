@@ -1,7 +1,10 @@
 ﻿using Lidgren.Network;
+using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
+using System.Net.Http;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -14,22 +17,30 @@ namespace KakoiLGServer
         // Configuration object
         static NetPeerConfiguration Config;
 
+        static Dictionary<int, Player> Players = new Dictionary<int, Player>();
+
         public static long tick;
 
         static void Main(string[] args)
         {
             // Create new instance of configs. Parameter is "application Id". It has to be same on client and server.
-            Config = new NetPeerConfiguration("Kakoi");
+            Config = new NetPeerConfiguration("Kakoi")
+            {
 
-            // Set server port
-            Config.Port = 25000;
+                // Set server port
+                Port = 25000,
+                BroadcastAddress = System.Net.IPAddress.Parse("192.168.0.100"),
+                LocalAddress = System.Net.IPAddress.Parse("192.168.0.100"),
 
-            // Max client amount
-            Config.MaximumConnections = 200;
+                // Max client amount
+                MaximumConnections = 1000,
+
+                // Set connection timeout to 10 seconds
+                ConnectionTimeout = 10.0f
+            };
 
             // Enable New messagetype. Explained later
             Config.EnableMessageType(NetIncomingMessageType.ConnectionApproval);
-            Config.ConnectionTimeout = 10.0f;
 
             // Create new server based on the configs just defined
             Server = new NetServer(Config);
@@ -39,13 +50,16 @@ namespace KakoiLGServer
 
             // Eh..
             Console.WriteLine("Server Started");
-            
-            List<Player> Players = new List<Player>();
+
             Room HubRoom = new Room("Hub", false) { isStatic = true , isHub = true};
             List<Room> Rooms = new List<Room>();
             Rooms.Add(HubRoom);
             Rooms.Add(new Room("DebugRoom", false) { isStatic = true });
             Rooms.Add(new Room("DebugLockedRoom", true, "test") { isStatic = true });
+            for (int i = 0; i < 100; i++)
+            {
+                Rooms.Add(new Room("Testroom"+i, false) { isStatic = true });
+            }
 
             // Object that can be used to store and read messages
             NetIncomingMessage inc;
@@ -59,11 +73,14 @@ namespace KakoiLGServer
             // Write to con..
             Console.WriteLine("Waiting for new connections and updateing world state to current ones");
 
+            Stopwatch perfTest = Stopwatch.StartNew();
+
             // Main loop
             // This kind of loop can't be made in XNA. In there, its basically same, but without while
-            // Or maybe it could be while(new messages)
+            // Or maybe it could be while(new messages
             while (true)
             {
+                perfTest.Restart();
                 if (Console.KeyAvailable)
                 {
                     if (Console.ReadKey().Key == ConsoleKey.Q)
@@ -76,7 +93,7 @@ namespace KakoiLGServer
                 while ((inc = Server.ReadMessage()) != null)
                 {
                     Player player = null;
-                    foreach (Player p in Players)
+                    foreach (Player p in Players.Values)
                     {
                         if (p.Connection != inc.SenderConnection)
                             continue;
@@ -99,30 +116,7 @@ namespace KakoiLGServer
 
                                 // Approve clients connection ( Its sort of agreenment. "You can be my client and i will host you" )
                                 inc.SenderConnection.Approve();
-                                Player newplayer = new Player(inc.ReadString(), inc.SenderConnection);
-                                Players.Add(newplayer);
-                                HubRoom.Players.Add(newplayer);
-                                
-                                // Create message, that can be written and sent
-                                NetOutgoingMessage outmsg = Server.CreateMessage();
-
-                                // first we write byte
-                                outmsg.Write((short)PacketTypes.LOGINSESSID);
-
-                                // TODO: verstuur ok
-
-                                // Now, packet contains:
-                                // Byte = packet type
-                                // Int = how many players there is in game
-                                // character object * how many players is in game
-
-                                // Send message/packet to all connections, in reliably order, channel 0
-                                // Reliably means, that each packet arrives in same order they were sent. Its slower than unreliable, but easyest to understand
-                                Server.SendMessage(outmsg, inc.SenderConnection, NetDeliveryMethod.ReliableOrdered, 0);
-                                
-
-                                // Debug
-                                Console.WriteLine("Approved new connection and updated the world status");
+                                TryLogin(inc.ReadString(), inc.SenderConnection);
                             }
 
                             break;
@@ -165,7 +159,7 @@ namespace KakoiLGServer
                             if (inc.SenderConnection.Status == NetConnectionStatus.Disconnected || inc.SenderConnection.Status == NetConnectionStatus.Disconnecting)
                             {
                                 // TODO: Remove player
-                                foreach (Player p in Players)
+                                foreach (Player p in Players.Values)
                                 {
                                     // If stored connection ( check approved message. We stored ip+port there, to character obj )
                                     // Find the correct character
@@ -177,9 +171,8 @@ namespace KakoiLGServer
                                 {
                                     foreach (Room room in Rooms)
                                     {
-                                        if (room.Players.Contains(player)) { room.Players.Remove(player); }
+                                        if (room.Players.Contains(player)) { room.Players.Leave(player); }
                                     }
-                                    Players.Remove(player);
                                 }
                             }
                             break;
@@ -199,6 +192,7 @@ namespace KakoiLGServer
                     {
                         RoomLogic.Tick(Rooms, Players);
                         tick++;
+                        Console.WriteLine("Tick took " + perfTest.Elapsed.TotalMilliseconds + "ms");
                     }
                     // Update current time
                     time = DateTime.Now;
@@ -213,6 +207,65 @@ namespace KakoiLGServer
                 {
                     System.Threading.Thread.Sleep(20);
                 }
+            }
+        }
+
+        private async static void TryLogin(string sessid, NetConnection senderConnection)
+        {
+            try
+            {
+                if (sessid == "HALO")
+                {
+                    NetOutgoingMessage msg = Server.CreateMessage();
+                    msg.Write((short)PacketTypes.LOGINSESSID);
+                    msg.Write((byte)255);
+                    msg.Write((string)"AHLO");
+                    senderConnection.Disconnect("CYA");
+                }
+                else
+                {
+                    using (var client = new HttpClient())
+                    {
+                        var response = await client.PostAsync("https://kakoi.ml/verify.php", new FormUrlEncodedContent(new Dictionary<string, string>() { { "sessid", sessid } }));
+
+                        var responseString = await response.Content.ReadAsStringAsync();
+                        if (responseString.Contains("{\"error\":"))
+                        {
+                            throw new Exception();
+                        }
+
+                        dynamic user = JObject.Parse(responseString);
+                        user = user.user;
+                        string username = (string)user.Username;
+                        Console.WriteLine("It was " + username + " who tried to log in");
+                        int id = (int)user.Id;
+
+                        if (Players.ContainsKey(id))
+                        {
+                            Players[id].Connection = senderConnection;
+                        }
+                        else
+                        {
+                            Players.Add(id, new Player(username, id, senderConnection));
+                        }
+
+                        NetOutgoingMessage msg = Server.CreateMessage();
+                        msg.Write((short)PacketTypes.LOGINSESSID);
+                        msg.Write((byte)1);
+                        msg.Write((int)id);
+                        msg.Write((string)username);
+                        senderConnection.SendMessage(msg, NetDeliveryMethod.ReliableOrdered, 0);
+                        Console.WriteLine("And so " + username + " was logged in");
+                    }
+                }
+            }
+            catch
+            {
+                NetOutgoingMessage msg = Server.CreateMessage();
+                msg.Write((short)PacketTypes.LOGINSESSID);
+                msg.Write((byte)0);
+                senderConnection.SendMessage(msg, NetDeliveryMethod.ReliableOrdered, 0);
+                senderConnection.Disconnect("Login Failed");
             }
         }
     }

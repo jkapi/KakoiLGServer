@@ -1,5 +1,7 @@
-﻿using System;
+﻿using Lidgren.Network;
+using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -10,7 +12,7 @@ namespace KakoiLGServer
     class Room
     {
         static int id = 0;
-        public List<Player> Players = new List<Player>();
+        public PlayerList Players = new PlayerList(4);
         public string Name;
         public bool Locked = false;
         public string Password = "";
@@ -19,6 +21,8 @@ namespace KakoiLGServer
         private MinigameTypes currentminigame;
         public bool isHub = false;
         public int ID;
+
+        public Stopwatch Timer;
 
         public MemoryStream Data = null;
 
@@ -29,6 +33,7 @@ namespace KakoiLGServer
             Password = password;
             ID = id;
             id++;
+            Timer = new Stopwatch();
         }
 
         public void StartMinigame(MinigameTypes minigame)
@@ -43,6 +48,15 @@ namespace KakoiLGServer
             {
                 case MinigameTypes.FlySwat: Minigames.FlySwat.InitRoom(this); break;
                 default: break;
+            }
+            NetOutgoingMessage data = Program.Server.CreateMessage();
+            data.Write((short)PacketTypes.MINIGAME);
+            data.Write((short)minigame);
+            foreach (Player player in Players)
+            {
+                NetOutgoingMessage outmsg = Program.Server.CreateMessage();
+                outmsg.Write(data.Data);
+                player.Connection.SendMessage(outmsg, NetDeliveryMethod.ReliableUnordered, 0);
             }
         }
     }

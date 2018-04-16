@@ -10,6 +10,7 @@ namespace KakoiLGServer
     class Player
     {
         public string Name;
+        public int Id;
 
         public float MouseX = 0;
         public float MouseY = 0;
@@ -18,9 +19,12 @@ namespace KakoiLGServer
 
         public NetConnection Connection;
 
-        public Player(string name, NetConnection connection)
+        public int PositionInRoom;
+
+        public Player(string name, int id, NetConnection connection)
         {
             Name = name;
+            Id = id;
             Connection = connection;
         }
     }

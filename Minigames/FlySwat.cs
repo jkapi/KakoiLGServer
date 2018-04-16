@@ -1,9 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Net.Http;
 
 namespace KakoiLGServer.Minigames
 {
@@ -17,6 +19,11 @@ namespace KakoiLGServer.Minigames
 
         public static void InitRoom(Room room)
         {
+            foreach (var item in Swatted.Where(kvp => room.Players.Contains(kvp.Value)).ToList())
+            {
+                Swatted.Remove(item.Key);
+            }
+
             if (flydictionary.ContainsKey(room))
             {
                 flydictionary[room] = new List<Fly>();
@@ -25,6 +32,8 @@ namespace KakoiLGServer.Minigames
             {
                 flydictionary.Add(room, new List<Fly>());
             }
+            room.Timer.Reset();
+            room.Timer.Start();
         }
 
         public static void StopRoom(Room room)
@@ -35,14 +44,17 @@ namespace KakoiLGServer.Minigames
             }
         }
 
-        public static void Tick(Room room, List<Player> players)
+        public static void Tick(Room room, PlayerList players)
         {
             if (flydictionary.ContainsKey(room))
             {
                 List<Fly> flies = flydictionary[room];
-                if (rand.Next(0, 40) == 1 && flies.Count < 255)
+                if (room.Timer.ElapsedMilliseconds > 5000)
                 {
-                    flies.Add(new Fly());
+                    if (rand.Next(0, 40) == 1 && flies.Count < 255)
+                    {
+                        flies.Add(new Fly());
+                    }
                 }
 
                 for (int i = flies.Count - 1; i >= 0; i--) 
@@ -63,6 +75,7 @@ namespace KakoiLGServer.Minigames
                 }
                 room.Data = new MemoryStream((2 * flies.Count + 1) * 4);
                 BinaryWriter writer = new BinaryWriter(room.Data);
+                writer.Write((int)room.Timer.ElapsedMilliseconds);
                 writer.Write((int)flies.Count);
                 foreach (Fly fly in flies)
                 {
@@ -70,6 +83,13 @@ namespace KakoiLGServer.Minigames
                     writer.Write((float)fly.X);
                     writer.Write((float)fly.Y);
                 }
+            }
+            if(room.Timer.ElapsedMilliseconds > 35000)
+            {
+                room.Timer.Stop();
+                room.Timer.Reset();
+                StopRoom(room);
+                room.StartMinigame(MinigameTypes.None);
             }
         }
 
@@ -118,7 +138,7 @@ namespace KakoiLGServer.Minigames
             }
 
             private double GetDistanceToGo()
-            {//d= sqrt((x 2 ​ −x 1 ​ )^2 +(y 2 ​ −y 1 ​ )^2 ​)
+            {
                 return Math.Sqrt((X - gotox) * (X - gotox) + (Y - gotoy) * (Y - gotoy));
             }
         }

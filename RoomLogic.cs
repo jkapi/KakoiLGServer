@@ -9,14 +9,15 @@ namespace KakoiLGServer
 {
     class RoomLogic
     {
-        static Dictionary<MinigameTypes, Dictionary<PacketTypes, Action<Room, List<Player>>>> MinigameHandlers = new Dictionary<MinigameTypes, Dictionary<PacketTypes, Action<Room, List<Player>>>>
-                    { { MinigameTypes.FlySwat, new Dictionary<PacketTypes, Action<Room, List<Player>>>(){
+        static Dictionary<MinigameTypes, Dictionary<PacketTypes, Action<Room, PlayerList>>> MinigameHandlers = new Dictionary<MinigameTypes, Dictionary<PacketTypes, Action<Room, PlayerList>>>
+                    { { MinigameTypes.FlySwat, new Dictionary<PacketTypes, Action<Room, PlayerList>>(){
                             { PacketTypes.TICK, Minigames.FlySwat.Tick }
                       }}
                     };
 
         public static void HandleGetRoom(NetIncomingMessage inc, Player player, List<Room> rooms)
         {
+
         }
 
         public static void HandleRoomList(NetIncomingMessage inc, List<Room> Rooms)
@@ -59,7 +60,7 @@ namespace KakoiLGServer
                     {
                         return;
                     }
-                    room.Players.Remove(player);
+                    room.Players.Leave(player);
                 }
 
                 if (room.ID == id)
@@ -70,11 +71,10 @@ namespace KakoiLGServer
             
             if (joinRoom != null)
             {
-                joinRoom.Players.Add(player);
+                joinRoom.Players.Join(player);
             }
-            joinRoom.StartMinigame(MinigameTypes.FlySwat);
 
-            HandleRoomList(inc, rooms);
+            joinRoom.StartMinigame(MinigameTypes.FlySwat);
         }
 
         public static void HandleLeaveRoom(NetIncomingMessage inc, Player player, List<Room> rooms)
@@ -84,7 +84,7 @@ namespace KakoiLGServer
             {
                 if (room.Players.Contains(player))
                 {
-                    room.Players.Remove(player);
+                    room.Players.Leave(player);
                 }
             }
         }
@@ -112,11 +112,11 @@ namespace KakoiLGServer
                 {
                     if (room.Players.Contains(player))
                     {
-                        room.Players.Remove(player);
+                        room.Players.Leave(player);
                     }
                 }
                 Room newRoom = new Room(name, false);
-                newRoom.Players.Add(player);
+                newRoom.Players.Join(player);
                 rooms.Add(newRoom);
                 outmsg.Write(true);
             }
@@ -127,7 +127,7 @@ namespace KakoiLGServer
             player.Connection.SendMessage(outmsg, NetDeliveryMethod.ReliableOrdered, 0);
         }
 
-        public static void Tick(List<Room> rooms, List<Player> players)
+        public static void Tick(List<Room> rooms, Dictionary<int, Player> players)
         {
             // Remove empty rooms
             for (int i = rooms.Count - 1; i >= 0; i--)
@@ -147,11 +147,16 @@ namespace KakoiLGServer
                     data.Write((int)room.Players.Count);
                     foreach (Player p in room.Players)
                     {
-                        data.Write(p.Name);
-                        data.Write(p.MouseX);
-                        data.Write(p.MouseY);
-                        data.Write(p.MouseDX);
-                        data.Write(p.MouseDY);
+                        if (p != null)
+                        {
+                            data.Write(p.Id);
+                            data.Write(p.Name);
+                            data.Write(p.MouseX);
+                            data.Write(p.MouseY);
+                            data.Write(p.MouseDX);
+                            data.Write(p.MouseDY);
+                            data.Write(p.PositionInRoom);
+                        }
                     }
                     if (room.CurrentMinigame != MinigameTypes.None)
                     {
@@ -174,7 +179,10 @@ namespace KakoiLGServer
                     {
                         NetOutgoingMessage outmsg = Program.Server.CreateMessage();
                         outmsg.Write(data.Data);
-                        player.Connection.SendMessage(outmsg, NetDeliveryMethod.ReliableUnordered, 0);
+                        if (player != null)
+                        {
+                            player.Connection.SendMessage(outmsg, NetDeliveryMethod.ReliableUnordered, 0);
+                        }
                     }
                 }
             }
