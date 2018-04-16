@@ -29,8 +29,6 @@ namespace KakoiLGServer
 
                 // Set server port
                 Port = 25000,
-                BroadcastAddress = System.Net.IPAddress.Parse("192.168.0.100"),
-                LocalAddress = System.Net.IPAddress.Parse("192.168.0.100"),
 
                 // Max client amount
                 MaximumConnections = 1000,
@@ -229,6 +227,7 @@ namespace KakoiLGServer
                         var response = await client.PostAsync("https://kakoi.ml/verify.php", new FormUrlEncodedContent(new Dictionary<string, string>() { { "sessid", sessid } }));
 
                         var responseString = await response.Content.ReadAsStringAsync();
+                        Console.WriteLine("Got response from server: " + responseString);
                         if (responseString.Contains("{\"error\":"))
                         {
                             throw new Exception();
@@ -236,9 +235,9 @@ namespace KakoiLGServer
 
                         dynamic user = JObject.Parse(responseString);
                         user = user.user;
-                        string username = (string)user.Username;
+                        string username = (string)user.username;
                         Console.WriteLine("It was " + username + " who tried to log in");
-                        int id = (int)user.Id;
+                        int id = (int)user.id;
 
                         if (Players.ContainsKey(id))
                         {
