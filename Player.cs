@@ -21,6 +21,9 @@ namespace KakoiLGServer
 
         public int PositionInRoom;
 
+        public int MainboardMoves = 0;
+        public int Score = 0;
+
         public Player(string name, int id, NetConnection connection)
         {
             Name = name;

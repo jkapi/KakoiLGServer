@@ -21,10 +21,13 @@ namespace KakoiLGServer
         private MinigameTypes currentminigame;
         public bool isHub = false;
         public int ID;
+        public List<KeyValuePair<string, string>> ChatMessages = new List<KeyValuePair<string, string>>();
+        public int[,] mainboard = new int[8, 8];
 
         public Stopwatch Timer;
 
         public MemoryStream Data = null;
+        public int currentMainboardPlayer = 0;
 
         public Room(string name, bool locked, string password = "")
         {
@@ -34,6 +37,13 @@ namespace KakoiLGServer
             ID = id;
             id++;
             Timer = new Stopwatch();
+            for (int x = 0; x < 8; x++)
+                for (int y = 0; y < 8; y++)
+                    mainboard[x, y] = -1;
+            mainboard[3, 3] = 0;
+            mainboard[3, 4] = 1;
+            mainboard[4, 3] = 2;
+            mainboard[4, 4] = 3;
         }
 
         public void StartMinigame(MinigameTypes minigame)
@@ -46,7 +56,10 @@ namespace KakoiLGServer
             currentminigame = minigame;
             switch(currentminigame)
             {
+                case MinigameTypes.MainGame: Minigames.Maingame.Init(this); break;
                 case MinigameTypes.FlySwat: Minigames.FlySwat.InitRoom(this); break;
+                case MinigameTypes.GameSelect: Minigames.GameSelect.Init(this); break;
+                case MinigameTypes.TapWhite: Minigames.TapWhite.Init(this); break;
                 default: break;
             }
             NetOutgoingMessage data = Program.Server.CreateMessage();

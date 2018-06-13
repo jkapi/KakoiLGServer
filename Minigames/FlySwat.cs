@@ -32,6 +32,10 @@ namespace KakoiLGServer.Minigames
             {
                 flydictionary.Add(room, new List<Fly>());
             }
+            foreach (Player player in room.Players)
+            {
+                player.Score = 0;
+            }
             room.Timer.Reset();
             room.Timer.Start();
         }
@@ -62,6 +66,7 @@ namespace KakoiLGServer.Minigames
                     flies[i].Tick();
                     if (Swatted.Keys.Contains(flies[i].ID))
                     {
+                        Swatted[flies[i].ID].Score++;
                         int tempid = flies[i].ID;
                         flies.Remove(flies[i]);
                         Swatted.Remove(tempid);
@@ -88,8 +93,13 @@ namespace KakoiLGServer.Minigames
             {
                 room.Timer.Stop();
                 room.Timer.Reset();
+                var sortedplayers = players.SortByHighestScore();
+                for (int i = 0; i < sortedplayers.Count; i++)
+                {
+                    sortedplayers[i].MainboardMoves = sortedplayers.Count - i;
+                }
                 StopRoom(room);
-                room.StartMinigame(MinigameTypes.None);
+                room.StartMinigame(MinigameTypes.MainGame);
             }
         }
 

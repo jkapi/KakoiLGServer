@@ -19,6 +19,8 @@ namespace KakoiLGServer
 
         static Dictionary<int, Player> Players = new Dictionary<int, Player>();
 
+        public static List<Room> Rooms;
+
         public static long tick;
 
         static void Main(string[] args)
@@ -50,7 +52,7 @@ namespace KakoiLGServer
             Console.WriteLine("Server Started");
 
             Room HubRoom = new Room("Hub", false) { isStatic = true , isHub = true};
-            List<Room> Rooms = new List<Room>();
+            Rooms = new List<Room>();
             Rooms.Add(HubRoom);
             Rooms.Add(new Room("DebugRoom", false) { isStatic = true });
             Rooms.Add(new Room("DebugLockedRoom", true, "test") { isStatic = true });
@@ -140,6 +142,8 @@ namespace KakoiLGServer
                                 case PacketTypes.LEAVEROOM: RoomLogic.HandleLeaveRoom(inc, player, Rooms); break;
                                 case PacketTypes.CREATEROOM: RoomLogic.HandleCreateRoom(inc, player, Rooms); break;
                                 case PacketTypes.SWAT: inc.ReadByte(); inc.ReadInt32(); Minigames.FlySwat.Swatted.Add(inc.ReadInt32(), player); break;
+                                case PacketTypes.CHAT: inc.ReadByte(); inc.ReadInt32(); Minigames.Maingame.Chat(inc.ReadString(), player); break;
+                                case PacketTypes.SETMOVE: inc.ReadByte(); inc.ReadInt32(); Minigames.Maingame.doMove(inc.ReadByte(), inc.ReadByte(), player); break;
                                 default: break;
                             }
                             break;
@@ -224,6 +228,7 @@ namespace KakoiLGServer
                 {
                     using (var client = new HttpClient())
                     {
+                        System.Net.ServicePointManager.SecurityProtocol = System.Net.SecurityProtocolType.Tls12;
                         var response = await client.PostAsync("https://kakoi.ml/verify.php", new FormUrlEncodedContent(new Dictionary<string, string>() { { "sessid", sessid } }));
 
                         var responseString = await response.Content.ReadAsStringAsync();

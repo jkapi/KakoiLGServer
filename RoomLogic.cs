@@ -9,10 +9,20 @@ namespace KakoiLGServer
 {
     class RoomLogic
     {
-        static Dictionary<MinigameTypes, Dictionary<PacketTypes, Action<Room, PlayerList>>> MinigameHandlers = new Dictionary<MinigameTypes, Dictionary<PacketTypes, Action<Room, PlayerList>>>
+        static Dictionary<MinigameTypes, Dictionary<PacketTypes, Action<Room, PlayerList>>> MinigameHandlers = 
+                    new Dictionary<MinigameTypes, Dictionary<PacketTypes, Action<Room, PlayerList>>>
                     { { MinigameTypes.FlySwat, new Dictionary<PacketTypes, Action<Room, PlayerList>>(){
                             { PacketTypes.TICK, Minigames.FlySwat.Tick }
-                      }}
+                      }},
+                      { MinigameTypes.MainGame, new Dictionary<PacketTypes, Action<Room, PlayerList>>(){
+                            { PacketTypes.TICK, Minigames.Maingame.Tick }
+                      }},
+                      { MinigameTypes.GameSelect, new Dictionary<PacketTypes, Action<Room, PlayerList>>(){
+                          { PacketTypes.TICK, Minigames.GameSelect.Tick }
+                      }},
+                      { MinigameTypes.TapWhite, new Dictionary<PacketTypes, Action<Room, PlayerList>>(){
+                          { PacketTypes.TICK, Minigames.TapWhite.Tick }
+                      }},
                     };
 
         public static void HandleGetRoom(NetIncomingMessage inc, Player player, List<Room> rooms)
@@ -74,7 +84,7 @@ namespace KakoiLGServer
                 joinRoom.Players.Join(player);
             }
 
-            joinRoom.StartMinigame(MinigameTypes.FlySwat);
+            joinRoom.StartMinigame(MinigameTypes.MainGame);
         }
 
         public static void HandleLeaveRoom(NetIncomingMessage inc, Player player, List<Room> rooms)
@@ -156,19 +166,28 @@ namespace KakoiLGServer
                             data.Write(p.MouseDX);
                             data.Write(p.MouseDY);
                             data.Write(p.PositionInRoom);
+                            data.Write(p.Score);
                         }
                     }
                     if (room.CurrentMinigame != MinigameTypes.None)
                     {
                         MinigameHandlers[room.CurrentMinigame][PacketTypes.TICK](room, room.Players);
                     }
-                    if (room.Data != null)
+                    if (room.Data != null && room.Data.CanRead)
                     {
-                        data.Write((int)room.Data.Length);
-                        room.Data.Position = 0;
-                        for (int i = 0; i < room.Data.Length; i++)
+                        try
                         {
-                            data.Write((byte)room.Data.ReadByte());
+                            data.Write((int)room.Data.Length);
+                            room.Data.Position = 0;
+                            for (int i = 0; i < room.Data.Length; i++)
+                            {
+                                data.Write((byte)room.Data.ReadByte());
+                            }
+                        }
+                        catch
+                        {
+                            // Though it is very unlikely, this can happen, client side won't bother if it doesn't get it.
+
                         }
                     }
                     else

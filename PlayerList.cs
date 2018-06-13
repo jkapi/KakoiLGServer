@@ -84,6 +84,22 @@ namespace KakoiLGServer
             return false;
         }
 
+        public List<Player> SortByHighestScore()
+        {
+            List<Player> realplayers = new List<Player>();
+            foreach(Player p in players)
+            {
+                if (p != null)
+                {
+                    realplayers.Add(p);
+                }
+            }
+            if (Count != 0)
+                return realplayers.OrderByDescending(o => o.Score).ToList();
+            else
+                return realplayers;
+        }
+
         public IEnumerator GetEnumerator()
         {
             List<Player> output = new List<Player>();

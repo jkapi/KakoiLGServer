@@ -89,6 +89,8 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Minigames\FlySwat.cs" />
+    <Compile Include="Minigames\GameSelect.cs" />
+    <Compile Include="Minigames\Maingame.cs" />
     <Compile Include="Player.cs" />
     <Compile Include="PlayerList.cs" />
     <Compile Include="Program.cs" />
